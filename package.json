@@ -1,0 +1,24 @@
+{
+  "name": "lookup",
+  "version": "1.0.0",
+  "description": "Tiny full-text search engine.",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "ava"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pickjunk/lookup.git"
+  },
+  "author": "ChieveiT",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pickjunk/lookup/issues"
+  },
+  "homepage": "https://github.com/pickjunk/lookup#readme",
+  "devDependencies": {
+    "ava": "3.11.1",
+    "typescript": "3.9.7"
+  }
+}
