@@ -2,14 +2,44 @@ const test = require('ava');
 const path = require('path');
 const cutter = require('../lib/cutter').default;
 
-test('cut', async t => {
+test('cutter cut tokens', async t => {
   const c = cutter();
-  await c.dictionary(path.resolve(__dirname, './dict/brand.txt'));
-  await c.dictionary(path.resolve(__dirname, './dict/series.txt'));
-  // for (let token of c.tokens()) {
-  //   console.log(token.text);
-  // }
+  await c.dict(path.resolve(__dirname, './dict/car.txt'));
 
   const tokens = c.cut('保时捷 Cayenne Cayenne S Coupé 2020 2.9L 手自一体变速箱(AT) 8档');
-  console.log(tokens.map(v => v.text));
+  t.deepEqual(tokens.map(v => v.text), [
+    '保时捷 cayenne', 'cayenne',
+    's', 'coup',
+    'é', '2020',
+    '2. 9 l', '手自一体',
+    '变', '速',
+    '箱', '(',
+    'at', ')',
+    '8', '档'
+  ]);
+});
+
+test('cutter cut tokens fully', async t => {
+  const c = cutter();
+  await c.dict(path.resolve(__dirname, './dict/car.txt'));
+
+  const tokens = c.fullCut('保时捷 Cayenne');
+  t.deepEqual(tokens.map(v => v.text), [
+    'porsche凯宴', '保时捷', '保',
+    '时', '捷', 'porsche',
+    '凯', '宴', 'porsche卡宴',
+    '保时捷', '保', '时',
+    '捷', 'porsche', '卡',
+    '宴', 'porsche cayenne', '保时捷',
+    '保', '时', '捷',
+    'porsche', 'cayenne', '保时捷 cayenne',
+    '保时捷', '保', '时',
+    '捷', 'porsche', 'cayenne',
+    '保时捷卡宴', '保时捷', '保',
+    '时', '捷', 'porsche',
+    '卡', '宴', '保时捷凯宴',
+    '保时捷', '保', '时',
+    '捷', 'porsche', '凯',
+    '宴'
+  ]);
 });

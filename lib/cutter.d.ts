@@ -19,7 +19,7 @@ export declare class Token {
     constructor(units: string[], freq: number, pos?: string);
 }
 export default function cutter(): {
-    dictionary(path: string): Promise<void>;
+    dict(path: string): Promise<void>;
     tokens(): Iterable<Token>;
     cut: (text: string, exceptSelf?: boolean) => Token[];
     fullCut: (text: string) => Token[];

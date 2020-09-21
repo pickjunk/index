@@ -28,6 +28,7 @@ export class Token {
     this.units = units;
     this.freq = freq;
     this.pos = pos || '';
+    this.synonyms.add(this);
   }
 }
 
@@ -67,6 +68,8 @@ export default function cutter() {
   const root = new Node();
   // 总词频
   let totalFreq = 0;
+  // 构建状态
+  let built = true;
 
   function addToken(token: Token) {
     let node = root;
@@ -77,6 +80,9 @@ export default function cutter() {
       node = node.children[unit];
     }
     node.token = token;
+
+    // 只要有添加新分词，就需要重新构建
+    built = false;
   }
 
   function findToken(text: string) {
@@ -103,8 +109,13 @@ export default function cutter() {
     }
   }
 
-  // 构建 fail 引用（AC自动机）
-  function buildFail() {
+  // 构建
+  function build() {
+    if (built) {
+      return;
+    }
+
+    // 构建 fail 引用（AC自动机）
     const queue = [root];
     while (queue.length) {
       const curr = queue.shift() as Node;
@@ -126,21 +137,24 @@ export default function cutter() {
         queue.push(child);
       }
     }
-  }
 
-  // 计算路径值，算法来自 huichen/sego
-  // 解释：log2(总词频/该分词词频)，等于log2(1/p(分词))，即为动态规划中该
-  // 分词的路径值。求解prod(p(分词))的最大值，等于求解sum(distance(分词))
-  // 的最小值，即为求最短路径
-  function calcDistance() {
+    // 计算路径值，算法来自 huichen/sego
+    // 解释：log2(总词频/该分词词频)，等于log2(1/p(分词))，即为动态规划中该
+    // 分词的路径值。求解prod(p(分词))的最大值，等于求解sum(distance(分词))
+    // 的最小值，即为求最短路径
     const total = Math.log2(totalFreq);
     for (let token of tokens(root)) {
       token.distance = total - Math.log2(token.freq);
     }
+
+    built = true;
   }
 
   // 分词
   function cut(text: string, exceptSelf = false) {
+    // 显式调用一次构建，确认分词前字典树已被构建
+    build();
+
     const units = split(text);
 
     if (exceptSelf && units.length == 1) {
@@ -203,16 +217,17 @@ export default function cutter() {
         }
       }
 
-      // 如果当前字元处的路径值为零，表明没有匹配到任何分词
-      if (jumper.distance == 0) {
-        // 没有分词则补加一个伪分词
-        const token = new Token([unit], 1);
-        token.distance = 32;
+      // 无论从词典找不找得到分词，都尝试以单个 unit 作为伪分词切分
+      // 缺省路径值 32，这个经验值来自 huichen/sego
+      const token = new Token([unit], 1);
+      token.distance = 32;
 
-        let base = 0;
-        if (i > 1) {
-          base = jumpers[i - 1].distance;
-        }
+      let base = 0;
+      if (i > 1) {
+        base = jumpers[i - 1].distance;
+      }
+      // 动态规划，若存在更短的路径值，更新记录
+      if (jumper.distance == 0 || jumper.distance > base + token.distance) {
         jumper.distance = base + token.distance;
         jumper.token = token;
       }
@@ -230,27 +245,34 @@ export default function cutter() {
   }
 
   // 全分词，一般用于提升召回率的场景
-  // 1. 加入所有子分词
-  // 2. 加入同义词
   function fullCut(text: string) {
     const tokens = cut(text);
 
-    const allTokens: Token[] = [];
+    const all: Token[] = [];
     for (let token of tokens) {
-      const queue = [token];
-      while (queue.length) {
-        const t = queue.shift() as Token;
-        allTokens.push(...t.synonyms);
-        queue.push(...t.synonyms);
-        allTokens.push(...t.children);
-        queue.push(...t.children);
+      all.push(...spread(token));
+    }
+    return all;
+  }
+
+  // 递归加入同义词和子分词
+  function spread(token: Token) {
+    const result: Token[] = [];
+    for (let synonym of token.synonyms) {
+      result.push(synonym);
+      for (let child of synonym.children) {
+        result.push(...spread(child));
       }
     }
-    return allTokens;
+    return result;
   }
 
   return {
-    async dictionary(path: string) {
+    async dict(path: string) {
+      if (!fs.existsSync(path)) {
+        throw new Error(`dictionary[${path}] does not exist`);
+      }
+
       // read line by line
       // https://nodejs.org/api/readline.html#readline_example_read_file_stream_line_by_line
       const rl = readline.createInterface({
@@ -286,9 +308,6 @@ export default function cutter() {
             totalFreq += Number(freq);
           });
 
-        buildFail();
-        calcDistance();
-
         for (let token of tokens(root)) {
           // 预先切好子分词，用于全分词时快速分词
           token.children = cut(token.text, true);
@@ -310,7 +329,7 @@ export default function cutter() {
           }
 
           // 更新旧词或新词的同义词表
-          for (let token of synonyms) {
+          for (let token of [...synonyms]) {
             let found = findToken(token.text);
             if (found) {
               // 旧词
@@ -328,9 +347,7 @@ export default function cutter() {
           }
         }
 
-        // 有可能加入了新词，这里再构建多一次
-        buildFail();
-        calcDistance();
+        build();
       }
     },
     tokens() {
