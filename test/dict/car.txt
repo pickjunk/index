@@ -4,3 +4,5 @@
 8挡 2 gear_count
 手自一体 10 gear_type
 一体变 2 wrong
+( 2 __STOP__
+) 2 __STOP__
