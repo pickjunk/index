@@ -20,7 +20,6 @@ export class Token {
   docs: {
     [id: string]: number;
   } = {};
-  children: Token[] = [];
   synonyms: Set<Token> = new Set();
 
   constructor(units: string[], freq: number, pos?: string) {
@@ -50,13 +49,17 @@ function split(text: string): string[] {
 function join(units: string[]) {
   let result = '';
 
+  let pre = 0;
   for (let unit of units) {
     if (/[a-zA-Z]/.test(unit)) {
-      result += ' ' + unit;
+      result += (pre == 1 || pre == 2 ? ' ' : '') + unit;
+      pre = 1;
     } else if (/[0-9]/.test(unit)) {
-      result += ' ' + unit;
+      result += (pre == 1 || pre == 2 ? ' ' : '') + unit;
+      pre = 2;
     } else {
       result += unit;
+      pre = 3;
     }
   }
 
@@ -80,9 +83,35 @@ export default function cutter() {
       node = node.children[unit];
     }
 
-    // 只要有添加新分词，就需要重新构建
-    if (node.token != token) {
+    if (node.token && node.token != token) {
+      // 合并已有的分词
+      const target = node.token;
+      target.pos = token.pos;
+      target.freq = token.freq;
+      target.docs = {
+        ...target.docs,
+        ...token.docs,
+      };
+
+      token.synonyms.delete(token);
+      token.synonyms.forEach((t) => {
+        const token = findToken(t.text);
+        if (token) {
+          token.synonyms.forEach((t) => {
+            target.synonyms.add(t);
+            t.synonyms = target.synonyms;
+          });
+        } else {
+          target.synonyms.add(t);
+          t.synonyms = target.synonyms;
+        }
+      });
+
+      built = false;
+    } else if (!node.token) {
+      // 加入新分词
       node.token = token;
+
       built = false;
     }
   }
@@ -250,23 +279,21 @@ export default function cutter() {
   function fullCut(text: string) {
     const tokens = cut(text);
 
-    const all: Token[] = [];
+    const all = new Set<Token>();
     for (let token of tokens) {
-      all.push(...spread(token));
+      spread(all, token);
     }
-    return all;
+    return [...all];
   }
 
   // 递归加入同义词和子分词
-  function spread(token: Token) {
-    const result: Token[] = [];
+  function spread(set: Set<Token>, token: Token) {
     for (let synonym of token.synonyms) {
-      result.push(synonym);
-      for (let child of synonym.children) {
-        result.push(...spread(child));
+      set.add(synonym);
+      for (let child of cut(synonym.text, true)) {
+        spread(set, child);
       }
     }
-    return result;
   }
 
   return {
@@ -305,59 +332,62 @@ export default function cutter() {
             // 注意同义词表是包含自己的
             token.synonyms = synonyms;
 
-            addToken(token);
-
             totalFreq += Number(freq);
           });
 
-        for (let token of tokens(root)) {
-          // 进一步切子分词，用于全分词时提升召回率
-          token.children = cut(token.text, true);
-          for (let t of token.children) {
-            addToken(t);
-          }
+        synonyms.forEach((token) => addToken(token));
+      }
 
-          // 遍历子分词的同义词，通过笛卡尔积构建所有可能存在的同义词
-          let synonyms = new Set([new Token([], token.freq, token.pos)]);
-          for (let c of token.children) {
-            const cartesian: Set<Token> = new Set();
-
-            for (let a of synonyms) {
-              for (let b of c.synonyms) {
-                cartesian.add(
-                  new Token([...a.units, ...b.units], token.freq, token.pos),
-                );
-              }
-            }
-
-            synonyms = cartesian;
-          }
-
-          // 更新旧词或新词的同义词表
-          for (let token of [...synonyms]) {
-            let found = findToken(token.text);
-            if (found) {
-              // 旧词
-              synonyms.delete(token);
-              for (let s of found.synonyms) {
-                synonyms.add(s);
-                s.synonyms = synonyms;
-              }
-            } else {
-              // 新词
-              token.children = cut(token.text, true);
-              token.synonyms = synonyms;
-              addToken(token);
-            }
-          }
+      for (let token of tokens(root)) {
+        // 切割出子分词
+        const children = cut(token.text, true);
+        for (let child of children) {
+          addToken(child);
         }
 
-        build();
+        // 遍历子分词的同义词，通过笛卡尔积构建所有可能存在的同义词
+        let circular = false;
+        let synonyms = new Set([new Token([], token.freq, token.pos)]);
+        for (let c of children) {
+          const cartesian: Set<Token> = new Set();
+
+          for (let a of synonyms) {
+            for (let b of c.synonyms) {
+              // 跳过一个非常危险的 corner case
+              // 子分词的同义词是自己的时候，同义词集合会无限自我增殖，甚至死循环
+              if (b.text == token.text) {
+                circular = true;
+                break;
+              }
+
+              cartesian.add(
+                new Token([...a.units, ...b.units], token.freq, token.pos),
+              );
+            }
+          }
+
+          synonyms = cartesian;
+        }
+
+        if (synonyms.size > 1 && !circular) {
+          synonyms.forEach((t) => {
+            if (t.text == token.text) {
+              // 删除掉自己
+              synonyms.delete(t);
+            } else {
+              t.synonyms = synonyms;
+              addToken(t);
+            }
+          });
+        }
       }
+
+      build();
     },
     tokens() {
       return tokens(root);
     },
+    findToken,
     cut,
     fullCut,
     index(text: string, id: string) {

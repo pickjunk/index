@@ -14,13 +14,13 @@ export declare class Token {
     docs: {
         [id: string]: number;
     };
-    children: Token[];
     synonyms: Set<Token>;
     constructor(units: string[], freq: number, pos?: string);
 }
 export default function cutter(): {
     dict(path: string): Promise<void>;
     tokens(): Iterable<Token>;
+    findToken: (text: string) => Token | undefined;
     cut: (text: string, exceptSelf?: boolean) => Token[];
     fullCut: (text: string) => Token[];
     index(text: string, id: string): void;
