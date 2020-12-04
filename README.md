@@ -26,9 +26,12 @@ const docs = [{
 }]
 
 async function main() {
+  // 实例化引擎
   const engine = lookup();
+  // 加载词库
   await engine.dict('./dict.txt');
 
+  // 进行文章索引
   for (let doc of docs) {
     engine.index(['title'], doc);
   }
@@ -73,7 +76,7 @@ main();
 ```
 
 ```
-// ./dict.txt
+// 词库 ./dict.txt
 百度 2 brand|baidu 2 brand
 baidu 莆田 2 desc
 我是中国人 2 brand
