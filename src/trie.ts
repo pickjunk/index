@@ -288,9 +288,16 @@ export default function cutter() {
 
   // 递归加入同义词和子分词
   function spread(set: Set<Token>, token: Token) {
+    let circular = false;
     for (let synonym of token.synonyms) {
       set.add(synonym);
       for (let child of cut(synonym.text, true)) {
+        // 跳过一个非常危险的 corner case
+        // 子分词的同义词是自己的时候，不检测跳过会死循环
+        if (child.text == token.text) {
+          circular = true;
+          break;
+        }
         spread(set, child);
       }
     }
@@ -354,7 +361,7 @@ export default function cutter() {
           for (let a of synonyms) {
             for (let b of c.synonyms) {
               // 跳过一个非常危险的 corner case
-              // 子分词的同义词是自己的时候，同义词集合会无限自我增殖，甚至死循环
+              // 子分词的同义词是自己的时候，不检测跳过会死循环
               if (b.text == token.text) {
                 circular = true;
                 break;

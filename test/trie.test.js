@@ -74,4 +74,21 @@ test('trie complicated synonyms', async t => {
     'seo图片',
     '莆田图片'
   ]);
+
+  const r2 = c.fullCut('百度网站').map(token => token.text);
+  t.deepEqual(r2, [
+    '百度网站', '百度',
+    '百', '度',
+    'baidu', 'baidu.com',
+    'seo', '莆田',
+    '莆', '田',
+    '.', 'com',
+    '网', '站',
+    '百度图片', '图',
+    '片', 'baidu网站',
+    'baidu.com网站', 'seo网站',
+    '莆田网站', 'baidu图片',
+    'baidu.com图片', 'seo图片',
+    '莆田图片'
+  ]);
 });
