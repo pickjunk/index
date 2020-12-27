@@ -169,6 +169,12 @@ export default function cutter() {
       }
     }
 
+    // 总词频
+    totalFreq = 0;
+    for (let token of tokens(root)) {
+      totalFreq += token.freq;
+    }
+
     // 计算路径值，算法来自 huichen/sego
     // 解释：log2(总词频/该分词词频)，等于log2(1/p(分词))，即为动态规划中该
     // 分词的路径值。求解prod(p(分词))的最大值，等于求解sum(distance(分词))
@@ -290,12 +296,16 @@ export default function cutter() {
   function spread(set: Set<Token>, token: Token) {
     for (let synonym of token.synonyms) {
       set.add(synonym);
+    }
+
+    for (let synonym of token.synonyms) {
       for (let child of cut(synonym.text, true)) {
         // 跳过一个非常危险的 corner case
         // 同义词的子分词如果已经在集合中，则跳过，不然会死循环
         if (set.has(child)) {
           continue;
         }
+
         spread(set, child);
       }
     }
@@ -324,7 +334,7 @@ export default function cutter() {
           .split('|')
           .forEach((v) => {
             let [pos, freq, ...text] = v.trim().split(' ').reverse();
-            if (!isNaN(Number(pos))) {
+            if (/[0-9]+/.test(pos)) {
               text.unshift(freq);
               freq = pos;
               pos = '';
@@ -336,8 +346,6 @@ export default function cutter() {
             synonyms.add(token);
             // 注意同义词表是包含自己的
             token.synonyms = synonyms;
-
-            totalFreq += Number(freq);
           });
 
         synonyms.forEach((token) => addToken(token));
@@ -351,40 +359,40 @@ export default function cutter() {
         }
 
         // 遍历子分词的同义词，通过笛卡尔积构建所有可能存在的同义词
-        let circular = false;
-        let synonyms = new Set([new Token([], token.freq, token.pos)]);
-        for (let c of children) {
-          const cartesian: Set<Token> = new Set();
+        try {
+          let synonyms = new Set([new Token([], token.freq, token.pos)]);
+          for (let c of children) {
+            const cartesian: Set<Token> = new Set();
 
-          for (let a of synonyms) {
-            for (let b of c.synonyms) {
-              // 跳过一个非常危险的 corner case
-              // 子分词的同义词是自己的时候，则跳过，不然会死循环
-              if (b.text == token.text) {
-                circular = true;
-                break;
+            for (let a of synonyms) {
+              for (let b of c.synonyms) {
+                // 跳过一个非常危险的 corner case
+                // 子分词的同义词是自己的时候，则跳过，不然会死循环
+                if (b.text == token.text) {
+                  throw new Error('circular in cartesian');
+                }
+
+                cartesian.add(
+                  new Token([...a.units, ...b.units], token.freq, token.pos),
+                );
               }
-
-              cartesian.add(
-                new Token([...a.units, ...b.units], token.freq, token.pos),
-              );
             }
+
+            synonyms = cartesian;
           }
 
-          synonyms = cartesian;
-        }
-
-        if (synonyms.size > 1 && !circular) {
-          synonyms.forEach((t) => {
-            if (t.text == token.text) {
-              // 删除掉自己
-              synonyms.delete(t);
-            } else {
-              t.synonyms = synonyms;
-              addToken(t);
-            }
-          });
-        }
+          if (synonyms.size > 1) {
+            synonyms.forEach((t) => {
+              if (t.text == token.text) {
+                // 删除掉自己
+                synonyms.delete(t);
+              } else {
+                t.synonyms = synonyms;
+                addToken(t);
+              }
+            });
+          }
+        } catch (_) {}
       }
 
       build();
