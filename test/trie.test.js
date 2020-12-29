@@ -77,12 +77,13 @@ test('trie complicated synonyms', async t => {
     '莆田图片'
   ]);
 
-  const r2 = c.fullCut('自动变速器').map(token => token.text);
+  const r2 = c.fullCut('手自一体变速箱').map(token => token.text);
   // console.log(r2);
   t.deepEqual(r2, [
-    '自动', '自动变速',
-    '自动变速器', '自动变速箱',
-    'at', '手自一体',
+    '自动变速', '自动变速器',
+    '自动变速箱', 'at',
+    '手自一体', '手自一体变速',
+    '手自一体变速器', '手自一体变速箱',
     '自', '动',
     '变', '速',
     '器', '箱',

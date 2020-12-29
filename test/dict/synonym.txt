@@ -6,6 +6,6 @@ baidu 10 series|seo 2 brand
 百度 4 series
 ISR 2 gear_type | ISR变速 2 gear_type | ISR变速箱 2 gear_type | ISR变速器 2 gear_type
 双离合 2 gear_type | 双离合变速 2 gear_type | DCT 2 gear_type | DSG 2 gear_type | 双离合变速器 2 gear_type | 双离合变速箱 2 gear_type
-无级 2 gear_type | 无级变速 2 gear_type | CVT 2 gear_type | 无级变速箱 2 gear_type | 无级变速器 2 gear_type
-自动 2 gear_type | 自动变速 2 gear_type | 自动变速器 2 gear_type | 自动变速箱 2 gear_type |  AT 2 gear_type | 手自一体 2 gear_type
-手动 2 gear_type | 手动变速 2 gear_type | 手动变速器 2 gear_type | 手动变速箱 2 gear_type | MT 2 gear_type
+无级变速 2 gear_type | CVT 2 gear_type | 无级变速箱 2 gear_type | 无级变速器 2 gear_type
+自动变速 2 gear_type | 自动变速器 2 gear_type | 自动变速箱 2 gear_type | AT 2 gear_type | 手自一体 2 gear_type | 手自一体变速 2 gear_type | 手自一体变速器 2 gear_type | 手自一体变速箱 2 gear_type
+手动变速 2 gear_type | 手动变速器 2 gear_type | 手动变速箱 2 gear_type | MT 2 gear_type

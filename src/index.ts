@@ -32,7 +32,7 @@ export default function engine() {
 
       let intersect: {
         [id: string]: number;
-      } = first.docs;
+      } = { ...first.docs };
       for (let t of rest) {
         for (let id in intersect) {
           if (!t.docs[id]) {
